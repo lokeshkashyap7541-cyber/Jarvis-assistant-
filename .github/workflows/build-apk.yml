@@ -8,26 +8,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract project ZIP
+      - name: Extract JarvisAssistant ZIP
         run: |
-          mkdir project
-          unzip -q JarvisAssistant.zip -d project
-          echo "Extracted files:"
-          find project -maxdepth 3 -type f | head -100
+          unzip -q JarvisAssistant.zip
+          echo "ZIP extracted"
+          ls -la JarvisAssistant
 
-      - name: Find Android project
-        run: |
-          PROJECT_DIR=$(find project -name gradlew -type f -print -quit | xargs -r dirname)
-          if [ -z "$PROJECT_DIR" ]; then
-            echo "gradlew not found in ZIP"
-            exit 1
-          fi
-          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
-
-      - name: Set up Java
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -36,14 +26,23 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Build Debug APK
-        working-directory: ${{ env.PROJECT_DIR }}
+      - name: Install Android SDK 34
         run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          sdkmanager "platforms;android-34" "build-tools;34.0.0"
+          yes | sdkmanager --licenses || true
+
+      - name: Set up Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Build Debug APK
+        working-directory: JarvisAssistant
+        run: |
+          gradle assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: JarvisAssistant-APK
-          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
+          path: JarvisAssistant/app/build/outputs/apk/debug/*.apk
